@@ -16,13 +16,13 @@ public class Main {
             System.out.println("Tables are created.");
         System.out.println("\n\n\n");
 
-        accountsManager.refillAccount("Mama", "EUR", 1000);
-        accountsManager.refillAccount("Mama", "UAH", 1000);
-        accountsManager.refillAccount("Mama", "USD", 1000);
+        accountsManager.directChangeAccountBalance("Papa", "EUR", 1000);
+        accountsManager.directChangeAccountBalance("Papa", "UAH", 1000);
+        accountsManager.directChangeAccountBalance("Papa", "USD", 1000);
 
-        accountsManager.refillAccount("Papa", "EUR", 1000);
-        accountsManager.refillAccount("Papa", "UAH", 1000);
-        accountsManager.refillAccount("Papa", "USD", 1000);
+        accountsManager.directChangeAccountBalance("Mama", "EUR", 1000);
+        accountsManager.directChangeAccountBalance("Mama", "USD", 1000);
+        accountsManager.directChangeAccountBalance("Mama", "UAH", 1000);
 
         accountsManager.directTransferMoneyBetweenAccounts("Mama","UAH", "Papa", "EUR", 100);
         accountsManager.directConvertMoneyWithinAccount("Mama","UAH", "EUR", 100);

@@ -45,11 +45,49 @@ public class BankingAccountsManager {
 
     }
 
-    private boolean isEnteredCurrencyCorrect(String currency) {
-        return currency.equals("EUR") || currency.equals("UAH") || currency.equals("USD");
+    private void storeTransactionToDB(String[] fromClientAndAccountToClientAndAccount, double money) {
+        String fromClient = fromClientAndAccountToClientAndAccount[0];
+        String fromAccountAsMonyeType = fromClientAndAccountToClientAndAccount[1];
+        String toClient = fromClientAndAccountToClientAndAccount[2];
+        String toAccountAsMonyeType = fromClientAndAccountToClientAndAccount[3];
+        Client client;
+        Account fromClientAccount;
+        Account toClientAccount;
+        try {
+            Query query = entityManager.createQuery("SELECT client FROM Client client WHERE client.name=:name", Client.class);
+            query.setParameter("name", fromClient);
+            client = (Client) query.getSingleResult();
+            query = entityManager.createQuery("SELECT account FROM Account account WHERE account.client=:client AND account.moneyType=:type", Account.class);
+            query.setParameter("client", client);
+            query.setParameter("type", fromAccountAsMonyeType);
+            fromClientAccount = (Account) query.getSingleResult();
+
+            query = entityManager.createQuery("SELECT client FROM Client client WHERE client.name=:name", Client.class);
+            query.setParameter("name", toClient);
+            client = (Client) query.getSingleResult();
+            query = entityManager.createQuery("SELECT account FROM Account account WHERE account.client=:client AND account.moneyType=:type", Account.class);
+            query.setParameter("client", client);
+            query.setParameter("type", toAccountAsMonyeType);
+            toClientAccount = (Account) query.getSingleResult();
+
+            Transactions newTransaction = new Transactions(fromClientAccount, toClientAccount, money);
+            addingTransaction(newTransaction);
+
+        } catch (NoResultException ex) {
+            ex.printStackTrace();
+        }
+
+
     }
 
-    private double findRateBetweenCurrencies(String currencyFrom, String currencyTo) {
+    private boolean isEnteredCurrencyCorrect(String currency) {
+
+        return currency.toUpperCase().equals("EUR") || currency.toUpperCase().equals("UAH") || currency.toUpperCase().equals("USD");
+    }
+
+    private double findRateBetweenCurrencies(String fromCurrency, String toCurrency) {
+        String currencyFrom = fromCurrency.toUpperCase();
+        String currencyTo = toCurrency.toUpperCase();
         List<ExchangeRates> result = new ArrayList<ExchangeRates>();
         try {
             Query query = entityManager.createQuery("SELECT exch FROM ExchangeRates exch", ExchangeRates.class);
@@ -99,13 +137,14 @@ public class BankingAccountsManager {
         return 0;
     }
 
-    public void directConvertMoneyWithinAccount(String clientName, String transferredCurrency, String destinationCurrency, double money){
+    public void directConvertMoneyWithinAccount(String clientName, String transferredCurrency, String destinationCurrency, double money) {
         double rate = findRateBetweenCurrencies(transferredCurrency, destinationCurrency);
         if (rate == 0) {
             System.out.println("Money Transaction within account is cancelled");
         } else {
             refillAccount(clientName, transferredCurrency, -money);
             refillAccount(clientName, destinationCurrency, money * rate);
+            storeTransactionToDB(new String[]{clientName,transferredCurrency,clientName,destinationCurrency},money);
         }
     }
 
@@ -120,7 +159,7 @@ public class BankingAccountsManager {
             System.out.println("Wrong entered Currency. Exit.");
             return;
         }
-        System.out.println("Enter Destination Currency (f.e. \"UAH\"): ");
+        System.out.print("Enter Destination Currency (f.e. \"UAH\"): ");
         String destinationCurrency = scanner.nextLine();
         if (!isEnteredCurrencyCorrect(destinationCurrency)) {
             System.out.println("Wrong entered Currency. Exit.");
@@ -130,7 +169,7 @@ public class BankingAccountsManager {
             System.out.println("Transferred and Destination currencies should not be equal!");
             return;
         }
-        System.out.println("Enter Money: ");
+        System.out.print("Enter Money: ");
         double money;
         try {
             money = Double.valueOf(scanner.nextLine());
@@ -145,6 +184,7 @@ public class BankingAccountsManager {
         } else {
             refillAccount(clientName, transferredCurrency, -money);
             refillAccount(clientName, destinationCurrency, money * rate);
+            storeTransactionToDB(new String[]{clientName,transferredCurrency,clientName,destinationCurrency},money);
         }
     }
 
@@ -155,6 +195,8 @@ public class BankingAccountsManager {
         } else {
             refillAccount(fromClientName, transferredCurrency, -money);
             refillAccount(toClientName, destinationCurrency, money * rate);
+            storeTransactionToDB(new String[]{fromClientName,transferredCurrency,toClientName,destinationCurrency},money);
+
         }
     }
 
@@ -169,15 +211,15 @@ public class BankingAccountsManager {
             System.out.println("Wrong entered Currency. Exit.");
             return;
         }
-        System.out.println("Enter Destination Client: ");
+        System.out.print("Enter Destination Client: ");
         String toClientName = scanner.nextLine();
-        System.out.println("Enter Destination Currency (f.e. \"UAH\"): ");
+        System.out.print("Enter Destination Currency (f.e. \"UAH\"): ");
         String destinationCurrency = scanner.nextLine();
         if (!isEnteredCurrencyCorrect(destinationCurrency)) {
             System.out.println("Wrong entered Currency. Exit.");
             return;
         }
-        System.out.println("Enter Money: ");
+        System.out.print("Enter Money: ");
         double money;
         try {
             money = Double.valueOf(scanner.nextLine());
@@ -192,6 +234,7 @@ public class BankingAccountsManager {
         } else {
             refillAccount(fromClientName, transferredCurrency, -money);
             refillAccount(toClientName, destinationCurrency, money * rate);
+            storeTransactionToDB(new String[]{fromClientName,transferredCurrency,toClientName,destinationCurrency},money);
         }
     }
 
@@ -232,12 +275,11 @@ public class BankingAccountsManager {
         if (!isTypedCurrencyPairCorrect(currencyPair)) {
             return;
         }
-        System.out.println("please enter Rate: ");
+        System.out.print("please enter Rate: ");
         String rate = new Scanner(System.in).nextLine();
         if (!isTypedRateCorrect(rate)) {
             return;
         }
-
         if (currencyPair.equals("1")) {
             changeExchangeRateData("EUR", "UAH", Double.valueOf(rate));
         } else {
@@ -270,13 +312,13 @@ public class BankingAccountsManager {
 
         double resultedSum = 0;
         for (Account accountByCurrency : clientAccounts) {
-            if (accountByCurrency.getMoneyType().equals("UAH")) {
+            if (accountByCurrency.getMoneyType().toUpperCase().equals("UAH")) {
                 resultedSum = resultedSum + accountByCurrency.getMoney();
             }
-            if (accountByCurrency.getMoneyType().equals("USD")) {
+            if (accountByCurrency.getMoneyType().toUpperCase().equals("USD")) {
                 resultedSum = resultedSum + accountByCurrency.getMoney() * findRateBetweenCurrencies("USD", "UAH");
             }
-            if (accountByCurrency.getMoneyType().equals("EUR")) {
+            if (accountByCurrency.getMoneyType().toUpperCase().equals("EUR")) {
                 resultedSum = resultedSum + accountByCurrency.getMoney() * findRateBetweenCurrencies("EUR", "UAH");
             }
         }
@@ -299,10 +341,8 @@ public class BankingAccountsManager {
         }
         if (userInterfaceFunction == 5) {
             System.out.println("SUM of all accounts in UAH of the current Client is: " + countSumAllAccountOneClientInUAH());
-        } else {
         }
     }
-
 
     public void initializeAllTables() {
 
@@ -327,13 +367,21 @@ public class BankingAccountsManager {
         return null;
     }
 
-    public void refillAccount(String clientName, String moneyType, double sum) {
+    public void directChangeAccountBalance(String clientName, String moneyType, double sum){
+        refillAccount(clientName,moneyType,sum);
+        storeTransactionToDB(new String[]{clientName,moneyType,clientName,moneyType},sum);
+    }
+
+
+    private void refillAccount(String clientName, String moneyType, double sum) {
+
         Client changedClient = getClientByName(clientName);
         if (changedClient == null) {
+            System.out.println("(refillAccount) Such Client is missing! return.");
             return;
         } else {
             for (Account acc : changedClient.getAccounts()) {
-                if (acc.getMoneyType().equals(moneyType)) {
+                if (acc.getMoneyType().equals(moneyType.toUpperCase())) {
                     acc.setMoney(acc.getMoney() + sum);
                     updateClientTransaction(changedClient);
                     return;
@@ -341,7 +389,6 @@ public class BankingAccountsManager {
             }
         }
     }
-
 
     private boolean isClientExists(String clientName) {
         try {
@@ -353,6 +400,16 @@ public class BankingAccountsManager {
             return false;
         }
         return true;
+    }
+
+    private void addingTransaction(Transactions newTransaction) {
+        entityManager.getTransaction().begin();
+        try {
+            entityManager.persist(newTransaction);
+            entityManager.getTransaction().commit();
+        } catch (Exception ex) {
+            entityManager.getTransaction().rollback();
+        }
     }
 
     private void addingClientTransaction(Client newClient) {
@@ -427,13 +484,13 @@ public class BankingAccountsManager {
         ExchangeRates resultOneLine;
         try {
             Query query = entityManager.createQuery("SELECT exch FROM ExchangeRates exch WHERE exch.fromMoneyType=:from AND exch.toMoneyType=:to", ExchangeRates.class);
-            query.setParameter("from", fromMoneyType);
-            query.setParameter("to", toMoneyType);
+            query.setParameter("from", fromMoneyType.toUpperCase());
+            query.setParameter("to", toMoneyType.toUpperCase());
             resultOneLine = (ExchangeRates) query.getSingleResult();
             resultOneLine.setRate(rate);
             exchangeRateTransaction(resultOneLine);
         } catch (NoResultException ex) {
-            exchangeRateTransaction(new ExchangeRates(fromMoneyType, toMoneyType, rate));
+            exchangeRateTransaction(new ExchangeRates(fromMoneyType.toUpperCase(), toMoneyType.toUpperCase(), rate));
         }
     }
 

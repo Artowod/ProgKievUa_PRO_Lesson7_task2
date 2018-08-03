@@ -1,4 +1,6 @@
 import javax.persistence.*;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "Accounts")
@@ -18,6 +20,13 @@ public class Account {
     @ManyToOne
     @JoinColumn(name = "client_id", referencedColumnName = "id")
     private Client client;
+
+
+    @OneToMany(mappedBy = "accountFrom", cascade = CascadeType.ALL)
+    private List<Transactions> transactionsFrom = new ArrayList<Transactions>();
+
+    @OneToMany(mappedBy = "accountTo", cascade = CascadeType.ALL)
+    private List<Transactions> transactionsTo = new ArrayList<Transactions>();
 
     public Account() {
     }
